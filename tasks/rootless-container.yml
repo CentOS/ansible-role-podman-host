@@ -1,0 +1,62 @@
+- block:
+    - name: Pulling container image[s]
+      podman_image:
+        name: "{{ item.image }}"
+      with_items: "{{ podman_rootless_containers }}"  
+      become_user: "{{ item.user }}"
+      loop_control:
+        label: '{{ item.image}}'
+
+    - name: Defining container but not start it
+      command:
+        cmd: "podman create
+             --name {{ item.name }}
+             {{ item.podman_args }}
+             {{ item.image }}
+             "
+        creates: "/home/{{ item.user }}/.config/systemd/user/container-{{ item.name }}.service"
+      register: container_created       
+      become_user: "{{ item.user }}"
+      with_items: "{{ podman_rootless_containers }}"  
+      loop_control:
+        label: '{{ item.name }}'
+
+    - name: Generating systemd units for rootless containers
+      command:
+        cmd: "podman generate systemd --name {{ item.name }} --files"
+        chdir: "/home/{{ item.user }}/.config/systemd/user"
+      become_user: "{{ item.user }}"
+      with_items: "{{ podman_rootless_containers }}"  
+      when:
+        - container_created is defined
+        - container_created is changed
+      register: container_systemd
+      loop_control:
+        label: '{{ item.name }}'
+
+
+    - name: Reloading systemd daemon if needed
+      systemd:
+        daemon_reload: True
+        scope: user
+      become_user: "{{ item.user }}"
+      with_items: "{{ podman_rootless_containers }}"  
+      when: 
+        - container_systemd is defined
+        - container_systemd is changed
+      loop_control:
+        label: '{{ item.name }}'
+
+
+    - name: Ensuring container is started through systemd
+      systemd:
+        name: "container-{{ item.name }}"
+        state: started
+        enabled: True
+        scope: user
+      become_user: "{{ item.user }}"
+      with_items: "{{ podman_rootless_containers }}"  
+      loop_control:
+        label: '{{ item.name }}'
+
+

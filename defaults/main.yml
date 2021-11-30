@@ -1,1 +1,30 @@
 # Defaults variables for role podman-host
+
+podman_pkgs:
+  - podman
+
+# Enable rootless podman on this host (default will be true)
+podman_rootless: True
+# list of users to prepare for systemd/user and start containers
+podman_rootless_users: []
+
+# We also have a rootless-container.yml task that can be imported
+# from other roles and so define their own config/but inheriting this role
+# example, from another role:
+#
+# - import_role:
+#    name: podman-host
+#   vars:
+#    - podman_rootless_users:
+#        - "{{ cachethq_user }}"
+#
+#- import_role:
+#    name: podman-host
+#    tasks_from: rootless-container.yml
+#  vars:
+#    podman_rootless_containers:
+#      - name: cachethq
+#        image: docker.io/cachethq/docker:latest
+#        podman_args: "-e DB_DRIVER=sqlite -e CACHE_DRIVER=database -e SESSION_DRIVER=database -e QUEUE_DRIVER=sync -e APP_KEY={{ cachethq_app_key }} -p {{ cachethq_container_port }}:8000 -v /home/{{ cachethq_user }}/cachethq/database.sqlite:/var/www/html/database/database.sqlite:Z"
+ #       user: cachet
+

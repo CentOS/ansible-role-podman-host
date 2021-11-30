@@ -1,1 +1,46 @@
 # Defaults tasks for role podman-host
+
+- name: Ensuring podman packages are installed
+  yum:
+    name: "{{ podman_pkgs }}"
+    state: installed
+
+- block:
+    - name: Ensuring user exists
+      user:
+        name: "{{ item }}"
+        state: present
+      with_items: "{{ podman_rootless_users }}"
+
+    - name: Ensuring we have a systemd config directory for user
+      file:
+        path: "/home/{{ item }}/.config/systemd/user"
+        state: directory
+        owner: "{{ item }}"
+        group: "{{ item }}"
+      with_items: "{{ podman_rootless_users }}"  
+
+    - name: Ensuring we have a config directory for user
+      file:
+        path: "/home/{{ item }}/.config/env"
+        state: directory
+        owner: "{{ item }}"
+        group: "{{ item }}"
+      with_items: "{{ podman_rootless_users }}"  
+
+    - name: Enabling systemd linger for user      
+      command:
+        cmd: "loginctl enable-linger {{ item }}"
+        creates: "/var/lib/systemd/linger/{{ item }}"
+      with_items: "{{ podman_rootless_users }}"  
+
+    - name: Tuning bash_profile to be able to find dbus
+      blockinfile:
+        path: "/home/{{ item }}/.bash_profile"
+        block: |
+          export XDG_RUNTIME_DIR=/run/user/$(id -u)
+      with_items: "{{ podman_rootless_users }}"
+
+  when: podman_rootless
+  tags:
+    - rootless
